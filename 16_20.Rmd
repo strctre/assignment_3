@@ -54,6 +54,7 @@ ggplot(township)+
   annotation_scale()
 ```
 ```{r}
+township <- township %>%
+  mutate(num_weibo = lengths(st_covers(township, weibo)))
+```
 
-  
-  
