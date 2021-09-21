@@ -9,25 +9,24 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+```{r}
+library(sf)
+library(tidyverse)
+library(ggthemes)
+library(ggspatial)
+library(units)
+library(nngeo)
 ```
 
-## Including Plots
+```{r}
+weibo <- st_read("C:/Users/Jialei/Documents/spatial analysis/spatial_3/weibo/weibo.shp")
 
-You can also embed plots, for example:
+school <- st_read("C:/Users/Jialei/Documents/spatial analysis/spatial_3/school/school.shp")
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+greenspace <- st_read("C:/Users/Jialei/Documents/spatial analysis/spatial_3/greenspace/greenspace.shp")
+
+township <- st_read("C:/Users/Jialei/Documents/spatial analysis/spatial_3/township/township.shp")
 ```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
 
 
 ```{r}
@@ -48,13 +47,124 @@ township <- township %>%
 
 ```{r}
 ggplot(township)+
+  annotation_map_tile(zoomin = 0, progress = "none") +
+  labs(caption = "Map tiles and data by OpenStreetMap")+
   geom_sf(fill = "grey", color = "white")+
   geom_sf(data = weibo, color = "red", size = 0.01)+
-  theme_map()+
-  annotation_scale()
-```
-```{r}
-township <- township %>%
-  mutate(num_weibo = lengths(st_covers(township, weibo)))
+  theme_map()
+ 
 ```
 
+```{r}
+
+
+township <- township %>%
+  mutate(num_weibo = lengths(st_covers(township, weibo)))
+
+mean(num_weibo)
+
+left_side  <- st_bbox(weibo)$xmin
+top_side <- st_bbox(weibo)$ymax
+
+ggplot(township) +
+  geom_sf(color = NA, 
+          aes(fill = num_weibo)) +
+  scale_fill_viridis_c(name = "Jiaxing townships\nby number of Weibo posts",
+                       breaks = breaks <- seq(0, 10000, by = 500),
+                       labels = paste(prettyNum(breaks, big.mark = ","),
+                                      "Weibo posts")) +
+  annotation_scale(location = "br") +
+  annotation_north_arrow(location = "tr",
+                         style = north_arrow_minimal()) +
+  annotate(geom = "text", x = left_side, 
+           y = top_side, 
+           label = paste("Average number:", 
+                         prettyNum(mean(num_weibo), big.mark = ","),
+                         "Weibo posts in Jiaxing\n", 
+                         sep = ""),
+           hjust = 0, vjust = 0, size = 3) +
+
+theme_map() +
+  theme(legend.background = element_rect(fill = alpha("white", 0.5), 
+                                         color = "gray"))
+
+```
+
+```{r}
+
+township <- township %>%
+  mutate(area = set_units(st_area(township), km^2)) %>%
+  mutate(weibo_dens = as.numeric(num_weibo / area))
+
+ggplot(township[which(township$weibo_dens > 0.5),]) +
+  geom_sf(color = NA, 
+          aes(fill = weibo_dens)) +
+    scale_fill_viridis_c(name = 
+                           "Jiaxing Townships\nby weibo posts density",
+                         breaks = breaks <- c(0.01, 0.1, 1, 10, 100, 1000), trans = "log",
+                       labels = paste(prettyNum(breaks, big.mark = ","),
+                                      "posts per square km")) +
+  annotation_scale(location = "br") +
+  annotation_north_arrow(location = "tr",
+                         style = north_arrow_minimal()) +
+theme_map() +
+  theme(legend.position = "right",
+    legend.background = element_rect(fill = alpha("white", 0.5), 
+                                         color = "gray"))
+
+```
+
+```{r}
+greenspace <- greenspace %>%
+  mutate(num_weibo = lengths(st_covers(greenspace, weibo)))
+  
+ggplot(greenspace) +
+  annotation_map_tile(zoomin = 0, progress = "none", type = "osmgrayscale") +
+  geom_sf() +
+  labs(caption = "Map tiles and data by OpenStreetMap")+
+  geom_sf(color = NA, 
+          aes(fill = num_weibo)) +
+    scale_fill_viridis_c(name = 
+                           "Jiaxing Greenspaces\nby number of weibo posts",
+                       breaks = breaks <- c(0.01, 0.1, 1, 10, 100, 1000), trans = "log",
+                       labels = paste(prettyNum(breaks, big.mark = ","),
+                                      "weibo posts")) +
+  annotation_scale(location = "br") +
+  annotation_north_arrow(location = "tr",
+                         style = north_arrow_minimal()) +
+  theme_map() +
+  theme(legend.position = "right",
+    legend.background = element_rect(fill = alpha("white", 0.5), 
+                                         color = "gray"))
+```
+
+
+
+```{r}
+greenspace <- greenspace %>%
+  mutate(num_weibo = lengths(st_covers(greenspace, weibo)))
+
+greenspace <- greenspace %>%
+  mutate(area = set_units(st_area(greenspace), km^2)) %>%
+  mutate(weibo_dens = as.numeric(num_weibo / area))
+
+ggplot(greenspace) +
+  annotation_map_tile(zoomin = 0, progress = "none", type = "osmgrayscale") +
+  geom_sf() +
+  labs(caption = "Map tiles and data by OpenStreetMap")+
+  geom_sf(color = NA, 
+          aes(fill = weibo_dens)) +
+    scale_fill_viridis_c(name = 
+                           "Jiaxing Greenspaces\nby number of weibo posts",
+                       breaks = breaks <- c(0.01, 0.1, 1, 10, 100, 1000), trans = "log",
+                       labels = paste(prettyNum(breaks, big.mark = ","),
+                                      "posts per square km")) +
+  annotation_scale(location = "br") +
+  annotation_north_arrow(location = "tr",
+                         style = north_arrow_minimal()) +
+theme_map() +
+  theme(legend.position = "right",
+    legend.background = element_rect(fill = alpha("white", 0.5), 
+                                         color = "gray"))
+```
+```{r}
